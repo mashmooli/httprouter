@@ -88,6 +88,9 @@ import (
 // wildcards (path variables).
 type Handle func(http.ResponseWriter, *http.Request, Params)
 
+// middlewares is a Handle func slice for adding middleware
+var middlewares []func(Handle) Handle
+
 // Param is a single URL parameter, consisting of a key and a value.
 type Param struct {
 	Key   string
@@ -244,6 +247,11 @@ func (r *Router) saveMatchedRoutePath(path string, handle Handle) Handle {
 			handle(w, req, ps)
 		}
 	}
+}
+
+// Use is a shortcut for add middleware
+func (r *Router) Use(m func(Handle) Handle) {
+	middlewares = append(middlewares, m)
 }
 
 // GET is a shortcut for router.Handle(http.MethodGet, path, handle)
@@ -468,10 +476,22 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if root := r.trees[req.Method]; root != nil {
 		if handle, ps, tsr := root.getValue(path, r.getParams); handle != nil {
 			if ps != nil {
-				handle(w, req, *ps)
+				if len(middlewares) > 0 {
+					for _, m := range middlewares {
+						m(handle)(w, req, *ps)
+					}
+				} else {
+					handle(w, req, *ps)
+				}
 				r.putParams(ps)
 			} else {
-				handle(w, req, nil)
+				if len(middlewares) > 0 {
+					for _, m := range middlewares {
+						m(handle)(w, req, nil)
+					}
+				} else {
+					handle(w, req, nil)
+				}
 			}
 			return
 		} else if req.Method != http.MethodConnect && path != "/" {

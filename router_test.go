@@ -164,6 +164,17 @@ func TestRouterAPI(t *testing.T) {
 	}
 }
 
+func TestMiddleware(t *testing.T) {
+	router := New()
+	router.Use(middlewareExample)
+}
+
+func middlewareExample(fn Handle) Handle {
+	return func(w http.ResponseWriter, r *http.Request, p Params) {
+		fn(w, r, p)
+	}
+}
+
 func TestRouterInvalidInput(t *testing.T) {
 	router := New()
 
