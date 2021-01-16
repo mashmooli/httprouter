@@ -240,11 +240,23 @@ func (r *Router) saveMatchedRoutePath(path string, handle Handle) Handle {
 			psp := r.getParams()
 			ps = (*psp)[0:1]
 			ps[0] = Param{Key: MatchedRoutePathParam, Value: path}
-			handle(w, req, ps)
+			if len(middlewares) > 0 {
+				for _, m := range middlewares {
+					m(handle)(w, req, ps)
+				}
+			} else {
+				handle(w, req, ps)
+			}
 			r.putParams(psp)
 		} else {
 			ps = append(ps, Param{Key: MatchedRoutePathParam, Value: path})
-			handle(w, req, ps)
+			if len(middlewares) > 0 {
+				for _, m := range middlewares {
+					m(handle)(w, req, ps)
+				}
+			} else {
+				handle(w, req, ps)
+			}
 		}
 	}
 }
@@ -476,7 +488,7 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if root := r.trees[req.Method]; root != nil {
 		if handle, ps, tsr := root.getValue(path, r.getParams); handle != nil {
 			if ps != nil {
-				if len(middlewares) > 0 {
+				if len(middlewares) > 0 && !r.SaveMatchedRoutePath {
 					for _, m := range middlewares {
 						m(handle)(w, req, *ps)
 					}
@@ -485,7 +497,7 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				}
 				r.putParams(ps)
 			} else {
-				if len(middlewares) > 0 {
+				if len(middlewares) > 0 && !r.SaveMatchedRoutePath {
 					for _, m := range middlewares {
 						m(handle)(w, req, nil)
 					}
